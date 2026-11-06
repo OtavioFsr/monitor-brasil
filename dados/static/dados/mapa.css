@@ -1,0 +1,296 @@
+:root {
+  --fundo: #f6f7f5;
+  --painel: #ffffff;
+  --texto: #1d2321;
+  --suave: #5d6763;
+  --borda: #dfe3e0;
+  --destaque: #1b6b4a;
+  --focos: #e8590c;
+  --desmatamento: #c92a2a;
+  --sismos: #6741d9;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  font: 14px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color: var(--texto);
+  background: var(--fundo);
+}
+
+body { display: flex; }
+
+.painel {
+  width: 340px;
+  flex: none;
+  height: 100%;
+  overflow-y: auto;
+  background: var(--painel);
+  border-right: 1px solid var(--borda);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+#mapa { flex: 1; height: 100%; }
+
+h1 { font-size: 20px; margin: 0; color: var(--destaque); }
+h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--suave); margin: 0 0 8px; }
+.sub { margin: 2px 0 0; color: var(--suave); }
+
+.campo { display: flex; flex-direction: column; gap: 4px; font-weight: 600; }
+.campo + .campo { margin-top: 10px; }
+select { font: inherit; padding: 6px 8px; border: 1px solid var(--borda); border-radius: 6px; background: #fff; }
+
+.camada {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 2px 8px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--borda);
+}
+.camada:last-child { border-bottom: 0; }
+.camada label { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+.camada small { grid-column: 1 / -1; color: var(--suave); min-height: 1em; }
+.camada .exibicao { grid-column: 1 / -1; justify-content: space-between; color: var(--suave); padding-left: 22px; }
+
+.legenda-calor { grid-column: 1 / -1; display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--suave); }
+.legenda-calor[hidden] { display: none; }
+.legenda-calor i {
+  flex: 1;
+  height: 8px;
+  border-radius: 4px;
+  background: linear-gradient(to right, #fed976, #fd8d3c, #f03b20, #bd0026, #67000d);
+}
+
+/* O Leaflet.heat põe o canvas no mesmo painel das outras camadas: fica atrás e não captura cliques. */
+.leaflet-heatmap-layer { z-index: -1; pointer-events: none; }
+
+.cor { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
+.cor.focos { background: var(--focos); }
+.cor.desmatamento { background: var(--desmatamento); border-radius: 2px; }
+.cor.sismos { background: var(--sismos); }
+.cor.chuva { background: linear-gradient(135deg, #97d3f4, #1f5fb0 60%, #94328f); border-radius: 2px; }
+.cor.raios { background: radial-gradient(circle, #862e9c 0 30%, #e03131 31% 55%, #fd7e14 56% 75%, #fab005 76%); }
+.legenda-raios { grid-column: 1 / -1; font-size: 11px; color: var(--suave); }
+.legenda-raios[hidden] { display: none; }
+.legenda-raios p { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 10px; margin: 2px 0; }
+.legenda-raios .titulo { font-weight: 600; color: var(--texto); flex-basis: 100%; }
+.legenda-raios i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 4px; vertical-align: -1px; }
+.legenda-raios i.recente, .legenda-raios i.antigo { width: 13px; height: 13px; background: #e03131; vertical-align: -2px; }
+.legenda-raios i.recente { box-shadow: inset 0 0 0 2.5px #e03131, inset 0 0 0 4px #fff; }
+.cor.temperatura { background: linear-gradient(135deg, #ffe066, #f76707 50%, #862e9c); border-radius: 2px; }
+.cor.previsao {
+  background: repeating-linear-gradient(135deg, #5fb1e8 0 3px, #fff 3px 4px), #5fb1e8; border-radius: 2px;
+  box-shadow: inset 0 0 0 1px #1f5fb0;
+}
+
+.legenda-chuva { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 0; font-size: 11px; color: var(--suave); }
+.legenda-chuva span { display: flex; flex-direction: column; align-items: flex-start; min-width: 0; flex: 1; }
+.legenda-chuva i { display: block; width: 100%; height: 8px; }
+.legenda-chuva .unidade { flex: none; justify-content: flex-end; padding-left: 4px; }
+.legenda-chuva[hidden] { display: none; }
+.cor.nuvens { background: linear-gradient(135deg, #adb5bd, #ffd43b 45%, #f03e3e 75%, #ae3ec9); border-radius: 2px; }
+.cor.enchente { background: linear-gradient(180deg, #a5d8ff, #1c7ed6 55%, #0b3d91); border-radius: 2px; }
+
+.simulador { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
+.simulador[hidden] { display: none; }
+.nivel-escolhido { display: flex; align-items: baseline; gap: 6px; }
+.nivel-escolhido output { font-size: 20px; font-weight: 700; color: #0b3d91; font-variant-numeric: tabular-nums; }
+.nivel-escolhido span { color: var(--suave); font-size: 12px; flex: 1; }
+.nivel-escolhido button, .marcas-enchente button {
+  font: inherit; font-size: 12px; border: 1px solid var(--borda); background: #fff; border-radius: 999px;
+  padding: 3px 9px; cursor: pointer; color: var(--texto);
+}
+.nivel-escolhido button:hover, .marcas-enchente button:hover { border-color: #1c7ed6; color: #0b3d91; }
+.simulador input[type="range"] { width: 100%; accent-color: #1c7ed6; }
+/* A linha do quadro tem altura e larguras fixas: trocar de quadro não mexe o resto do menu. */
+.animacao-nuvens .nivel-escolhido { align-items: center; height: 26px; }
+.animacao-nuvens .nivel-escolhido output { font-size: 16px; width: 70px; flex: none; }
+.animacao-nuvens .nivel-escolhido span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.animacao-nuvens .nivel-escolhido button { width: 84px; flex: none; }
+.selo-projecao {
+  display: inline-block; padding: 1px 8px; border-radius: 999px; background: #fff4e6; border: 1px solid #f08c00;
+  color: #b35c00; font-size: 12px; font-weight: 700; letter-spacing: .02em;
+}
+.marcas-enchente { display: flex; flex-wrap: wrap; gap: 4px; }
+.marcas-enchente button.ativa { background: #e7f1ff; border-color: #1c7ed6; }
+.impacto-enchente { margin: 2px 0 0; font-size: 13px; }
+.rio-agora { margin: 0; font-size: 13px; }
+.rio-agora .nivel-verde { color: #2b8a3e; }
+.rio-agora .nivel-amarelo { color: #d9480f; }
+.rio-agora .nivel-vermelho { color: #c92a2a; }
+.rio-referencia { margin: 0; font-size: 12px; color: var(--suave); }
+.impacto-enchente strong { color: #0b3d91; }
+.municipios-enchente { margin: 0; padding-left: 20px; font-size: 12px; color: var(--suave); }
+.camada .regiao-enchente { flex-direction: column; align-items: stretch; gap: 3px; font-size: 12px; color: var(--suave); cursor: default; }
+.painel-regiao { display: flex; flex-direction: column; gap: 6px; }
+.painel-regiao[hidden] { display: none; }
+.mare-agora { margin: 0; font-size: 13px; }
+.mare-agora strong { font-size: 18px; color: #0b3d91; font-variant-numeric: tabular-nums; }
+.grafico-mare { width: 100%; height: auto; background: #f4f8fc; border: 1px solid var(--borda); border-radius: 6px; }
+.grafico-mare text { font: 9px system-ui, sans-serif; fill: var(--suave); }
+.mare-alta, .chuva-belem { margin: 0; font-size: 12px; }
+.mare-alta.acima { color: #c2410c; font-weight: 600; }
+.subtitulo { margin: 6px 0 0; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--suave); }
+.setores-belem { list-style: none; margin: 0; padding: 0; font-size: 12px; display: flex; flex-direction: column; gap: 3px; }
+.setores-belem i { display: inline-block; width: 11px; height: 11px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
+.comparar-enchente { display: flex; align-items: center; gap: 6px; font-size: 12px; cursor: pointer; }
+.legenda-comparacao { font-size: 11px; color: var(--suave); }
+.legenda-comparacao[hidden] { display: none; }
+.legenda-comparacao i { display: inline-block; width: 10px; height: 10px; background: #f76707; border-radius: 2px; vertical-align: -1px; }
+.cor.vento { background: linear-gradient(135deg, #66d9e8, #0b7285); border-radius: 2px; }
+.fonte-camada { font-size: 11px; color: var(--suave); }
+.camada .dica-camada { font-size: 11px; line-height: 1.3; }
+.camada .dica-camada[hidden] { display: none; }
+
+.coletas ul { list-style: none; margin: 0; padding: 0; }
+.coletas li { padding: 3px 0; }
+.coletas .ok { color: var(--destaque); }
+.coletas .falha { color: var(--desmatamento); }
+.dica { color: var(--suave); margin: 6px 0 0; font-size: 12px; }
+code { background: #eef1ef; padding: 1px 4px; border-radius: 4px; }
+
+/* Seções minimizáveis do painel */
+.secao summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  list-style: none;
+  padding: 2px 0;
+  border-radius: 4px;
+}
+.secao summary::-webkit-details-marker { display: none; }
+.secao summary h2 { margin: 0; }
+.secao summary::after {
+  content: '';
+  width: 7px;
+  height: 7px;
+  margin-right: 4px;
+  border-right: 2px solid var(--suave);
+  border-bottom: 2px solid var(--suave);
+  transform: rotate(45deg);
+  transition: transform .15s;
+}
+.secao:not([open]) summary::after { transform: rotate(-45deg); }
+.secao summary:hover h2 { color: var(--texto); }
+.secao summary:focus-visible { outline: 2px solid var(--destaque); outline-offset: 2px; }
+.secao[open] summary { margin-bottom: 8px; }
+.secao + .secao { margin-top: -6px; }
+
+/* Seções em destaque (alertas e saúde): caixa colorida mesmo minimizadas; abertas, só a moldura */
+.secao.box { border: 2px solid var(--cor-box); border-radius: 8px; padding: 8px 10px; background: var(--fundo-box); }
+.secao.box[open] { background: var(--painel); }
+.secao.box summary h2, .secao.box summary:hover h2 { color: var(--texto-box); }
+.secao.box summary::after { border-color: var(--texto-box); }
+.secao.box summary:focus-visible { outline-color: var(--cor-box); }
+.secao.box:not([open]):hover { filter: brightness(.97); }
+.resumo-box { display: block; margin-top: 2px; font-size: 12px; color: var(--texto-box); }
+.secao.box[open] .resumo-box { display: none; }
+.box-situacao { --cor-box: #ced4da; --fundo-box: #f1f3f5; --texto-box: #495057; }
+.box-alertas { --cor-box: #f08c00; --fundo-box: #fff4e6; --texto-box: #a64b00; }
+.box-saude { --cor-box: #2f9e44; --fundo-box: #ebfbee; --texto-box: #1e6b30; }
+
+.fontes { margin: 12px 0 0; color: var(--suave); font-size: 12px; }
+.fontes a { color: var(--destaque); }
+
+.icone-bc { width: 14px; height: 16px; flex: none; }
+.marcador-bc { filter: drop-shadow(0 1px 1.5px rgba(0, 0, 0, .45)); }
+
+.leaflet-popup-content { font-size: 13px; line-height: 1.45; }
+.leaflet-popup-content strong { display: block; font-size: 14px; margin-bottom: 2px; }
+
+@media (max-width: 760px) {
+  body { flex-direction: column; }
+  .painel { width: 100%; height: auto; max-height: 45vh; border-right: 0; border-bottom: 1px solid var(--borda); }
+  #mapa { height: auto; flex: 1; min-height: 55vh; }
+}
+
+/* Situação das regionais e alertas */
+:root { --nivel-verde: #2f9e44; --nivel-amarelo: #f59f00; --nivel-vermelho: #e03131; --nivel-indisponivel: #adb5bd; }
+.situacao-resumo { margin: 0 0 6px; font-size: 13px; }
+.regionais, .alertas { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.regional button {
+  width: 100%; text-align: left; font: inherit; background: #fff; cursor: pointer;
+  border: 1px solid var(--borda); border-left: 5px solid var(--nivel-indisponivel); border-radius: 6px; padding: 5px 8px;
+  display: grid; grid-template-columns: auto 1fr auto; column-gap: 6px; align-items: center;
+}
+.regional button:hover { background: #f6f8fa; }
+.regional.ativa button { box-shadow: 0 0 0 2px var(--destaque) inset; }
+.regional.nivel-verde button { border-left-color: var(--nivel-verde); }
+.regional.nivel-amarelo button { border-left-color: var(--nivel-amarelo); background: #fff9db; }
+.regional.nivel-vermelho button { border-left-color: var(--nivel-vermelho); background: #fff5f5; }
+.semaforo { width: 10px; height: 10px; border-radius: 50%; background: var(--nivel-indisponivel); }
+.nivel-verde .semaforo, .alerta.nivel-verde .semaforo { background: var(--nivel-verde); }
+.nivel-amarelo .semaforo { background: var(--nivel-amarelo); }
+.nivel-vermelho .semaforo { background: var(--nivel-vermelho); }
+.regional .uf { color: var(--suave); font-size: 12px; }
+.regional .motivos { grid-column: 2 / -1; margin: 2px 0 0; padding: 0; list-style: none; font-size: 12px; color: #343a40; }
+.regional .motivos .indisponivel { color: var(--suave); }
+.regional .previsao-dias {
+  grid-column: 2 / -1; display: grid; grid-template-columns: repeat(3, 1fr); gap: 3px; margin-top: 5px;
+  font-size: 11px; color: var(--suave);
+}
+.previsao-dias > span:first-child { grid-column: 1 / -1; }
+.previsao-dias .dia {
+  display: flex; flex-direction: column; align-items: center; padding: 1px 4px; border-radius: 5px;
+  border: 1px solid transparent; color: #1d2321; font-size: 12px; font-weight: 600; line-height: 1.25;
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.previsao-dias .dia small { font-size: 10px; font-weight: 400; color: var(--suave); }
+.previsao-dias .p0 { background: #f1f3f5; font-weight: 400; color: var(--suave); }
+.previsao-dias .p1 { background: #e7f5ff; }
+.previsao-dias .p2 { background: #a5d8ff; }
+.previsao-dias .p3 { background: #fff3bf; border-color: #fab005; }
+.previsao-dias .p4 { background: #ffe8cc; border-color: #f76707; }
+.previsao-dias .p5 { background: #ffe3e3; border-color: #e03131; }
+.contador-alertas { display: inline-block; min-width: 18px; padding: 0 5px; border-radius: 9px; background: var(--nivel-vermelho);
+  color: #fff; font-size: 11px; text-align: center; letter-spacing: 0; }
+.contador-alertas:empty { display: none; }
+.alerta { display: grid; grid-template-columns: auto 1fr; column-gap: 6px; font-size: 12px; padding: 4px 0; border-bottom: 1px solid var(--borda); }
+.alerta:last-child { border-bottom: 0; }
+.alerta .semaforo { margin-top: 3px; }
+.alerta strong { font-weight: 600; }
+.alerta small { grid-column: 2; color: var(--suave); }
+.alertas .vazio { font-size: 12px; color: var(--suave); }
+
+/* Avisos do INMET e saúde */
+.cor.avisos { background: linear-gradient(135deg, #FFFE00, #FE9900 55%, #FF0000); border-radius: 2px; }
+.legenda-avisos span { min-width: 0; }
+.legenda-avisos span:not(.unidade) { flex: 1; }
+/* Saúde nas regionais */
+:root { --saude-1: #2f9e44; --saude-2: #e0a800; --saude-3: #f76707; --saude-4: #e03131; }
+.saude-intro { margin: 0 0 6px; font-size: 13px; }
+.saude-legenda { list-style: none; margin: 0 0 8px; padding: 0; display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 11px; color: var(--suave); }
+.saude-legenda i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 4px; }
+.saude-legenda .n1, .selo.n1 { background: var(--saude-1); }
+.saude-legenda .n2, .selo.n2 { background: var(--saude-2); }
+.saude-legenda .n3, .selo.n3 { background: var(--saude-3); }
+.saude-legenda .n4, .selo.n4 { background: var(--saude-4); }
+.saude-cidades { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 5px; }
+.saude-cidade button {
+  width: 100%; text-align: left; font: inherit; cursor: pointer; background: #fff;
+  border: 1px solid var(--borda); border-left: 5px solid var(--saude-2); border-radius: 6px; padding: 5px 8px;
+}
+.saude-cidade.pior-1 button { border-left-color: var(--saude-1); background: #f4fbf5; }
+.saude-cidade.pior-3 button { border-left-color: var(--saude-3); background: #fff4e6; }
+.saude-cidade.pior-4 button { border-left-color: var(--saude-4); background: #fff5f5; }
+.saude-cidade button:hover { filter: brightness(.98); }
+.saude-cidade .uf { color: var(--suave); font-size: 12px; margin-left: 4px; }
+/* Cada doença em duas linhas alinhadas: nome e situação; embaixo, casos e tendência. */
+.doenca { display: grid; grid-template-columns: 82px 1fr; column-gap: 6px; row-gap: 1px; margin-top: 4px; font-size: 12px; }
+.doenca .nome { color: var(--suave); grid-row: 1 / span 2; }
+.doenca .selo { justify-self: start; }
+.selo { color: #fff; border-radius: 3px; padding: 0 5px; font-size: 11px; font-weight: 600; white-space: nowrap; }
+.selo.n2 { color: #3d2e00; }
+.doenca .numero { color: #343a40; white-space: nowrap; }
+.tendencia-subindo { color: #c92a2a; font-weight: 600; }
+.tendencia-caindo { color: #2f9e44; font-weight: 600; }
+.saude-baixo { margin: 8px 0 0; font-size: 12px; }
+.saude-baixo:empty { display: none; }
+.cor.cemaden { background: #e8590c; box-shadow: 0 0 0 2px #fff inset, 0 0 0 1px #e8590c; }

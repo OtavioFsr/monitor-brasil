@@ -1,0 +1,7 @@
+Django==6.1.2
+requests==2.34.2
+# Chuva (INPE/CPTEC MERGE): leitura do GRIB2 (o pacote traz a biblioteca ecCodes compilada),
+# soma das grades e imagem da camada.
+eccodes==2.50.0
+numpy==2.5.4
+pillow==13.0.0

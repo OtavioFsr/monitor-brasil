@@ -1,0 +1,338 @@
+{% load static %}<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Monitor Brasil</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+  <link rel="stylesheet" href="{% static 'dados/mapa.css' %}?v={{ versao_estaticos }}">
+</head>
+<body>
+  <aside class="painel" id="painel">
+    <header>
+      <h1>Monitor Brasil</h1>
+      <p class="sub">Dados abertos de órgãos públicos brasileiros</p>
+    </header>
+
+    <section>
+      <label class="campo">
+        <span>Estado</span>
+        <select id="uf">
+          <option value="">Brasil inteiro</option>
+          {% for codigo, sigla, nome in ufs %}<option value="{{ sigla }}">{{ nome }} ({{ sigla }})</option>{% endfor %}
+        </select>
+      </label>
+      <label class="campo">
+        <span>Cidade em foco</span>
+        <select id="cidade">
+          <option value="">Nenhuma</option>
+          {% for cidade in cidades %}<option value="{{ cidade.id }}">{{ cidade.nome }} ({{ cidade.uf }})</option>{% endfor %}
+        </select>
+      </label>
+    </section>
+
+    <details class="secao box box-situacao" id="secao-situacao" open>
+      <summary><div><h2>Situação das regionais</h2>
+        <small class="resumo-box">Semáforo das 10 regionais do BC</small></div></summary>
+      <p class="situacao-resumo" id="situacao-resumo">avaliando…</p>
+      <ul class="regionais" id="regionais"></ul>
+      <p class="dica" id="situacao-rodape"></p>
+    </details>
+
+    <details class="secao box box-alertas" id="secao-alertas">
+      <summary><div><h2>Alertas <span class="contador-alertas" id="contador-alertas"></span></h2>
+        <small class="resumo-box">Abertos agora e histórico das regionais</small></div></summary>
+      <h3 class="subtitulo" id="titulo-alertas-abertos">Abertos</h3>
+      <ul class="alertas" id="alertas-abertos"></ul>
+      <h3 class="subtitulo">Histórico</h3>
+      <ul class="alertas" id="alertas-historico"></ul>
+    </details>
+
+    <details class="secao box box-saude" id="secao-saude">
+      <summary><div><h2>Saúde nas regionais</h2>
+        <small class="resumo-box">Dengue e chikungunya nas 10 cidades</small></div></summary>
+      <p class="saude-intro" id="saude-intro">Dengue e chikungunya nas cidades das regionais, segundo o InfoDengue (Fiocruz/FGV).</p>
+      <ul class="saude-legenda" aria-label="Situações possíveis">
+        <li><i class="n1"></i>Baixo risco</li>
+        <li><i class="n2"></i>Clima favorável ao mosquito</li>
+        <li><i class="n3"></i>Transmissão sustentada</li>
+        <li><i class="n4"></i>Epidemia</li>
+      </ul>
+      <ul class="saude-cidades" id="saude-cidades"></ul>
+      <p class="saude-baixo" id="saude-baixo"></p>
+      <p class="dica">Casos por 100 mil habitantes na semana, estimados pelo InfoDengue para corrigir o atraso das
+        notificações. A seta compara com a semana anterior. Clique numa cidade para vê-la no mapa.</p>
+    </details>
+
+    <section class="camadas">
+      <h2>Camadas</h2>
+      <div class="camada">
+        <label><input type="checkbox" id="banco-central" checked> <img class="icone-bc" src="{% static 'dados/banco_central.svg' %}" alt=""> Banco Central</label>
+        <small>Sede em Brasília e 9 representações regionais</small>
+      </div>
+      <div class="camada">
+        <label><input type="checkbox" id="enchente"> <i class="cor enchente"></i> Enchentes</label>
+        <span class="fonte-camada">ANA</span>
+        <small id="contagem-enchente">Porto Alegre (simulação do Guaíba), Belém (maré e áreas de risco) e rios perto do BC em
+          Recife, BH, Rio e Curitiba.</small>
+        <div class="simulador" id="simulador-enchente" hidden>
+          <label class="regiao-enchente">Região
+            <select id="regiao-enchente">
+              <option value="guaiba" selected>Guaíba – Porto Alegre e região</option>
+              <option value="belem">Belém – maré e áreas de risco</option>
+              <option value="recife">Recife – Rio Capibaribe</option>
+              <option value="belo-horizonte">Belo Horizonte – Rio das Velhas</option>
+              <option value="rio-de-janeiro">Rio de Janeiro – Rio Tijuca</option>
+              <option value="curitiba">Curitiba – Rio Iguaçu</option>
+            </select>
+          </label>
+          <div class="painel-regiao" id="painel-guaiba">
+          <div class="nivel-escolhido">
+            <output id="nivel-enchente" for="slider-enchente">—</output>
+            <span>no Cais Mauá</span>
+            <button type="button" id="animar-enchente">▶ Subir</button>
+          </div>
+          <input type="range" id="slider-enchente" min="0" max="7" step="0.01" value="1.3"
+                 aria-label="Nível do Guaíba no Cais Mauá, em metros">
+          <div class="marcas-enchente" id="marcas-enchente"></div>
+          <p class="impacto-enchente" id="impacto-enchente"></p>
+          <ol class="municipios-enchente" id="municipios-enchente"></ol>
+          <label class="comparar-enchente"><input type="checkbox" id="comparar-2024">
+            Comparar com o que alagou em 06/05/2024 (satélite)</label>
+          <small class="legenda-comparacao" id="legenda-comparacao" hidden>
+            <i class="so-observado"></i> alagou em 2024 e a simulação não mostra · nas outras áreas as duas concordam
+          </small>
+          <div class="legenda-chuva">
+            <span><i style="background: #a5d8ff"></i>&lt; 0,5</span><span><i style="background: #4dabf7"></i>0,5</span>
+            <span><i style="background: #1c7ed6"></i>1,5</span><span><i style="background: #0b3d91"></i>3</span>
+            <span class="unidade">m de água</span>
+          </div>
+          <small class="dica-camada">Simulação simplificada ("de banheira"): alaga o terreno ligado ao Guaíba abaixo do nível
+            escolhido. Relevo do ANADEM (ANA/UFRGS, células de ~85 m) e, em Porto Alegre, as manchas simuladas pelo IPH/UFRGS.
+            Não considera os diques e o muro da Mauá (linhas escuras no mapa), as casas de bombas nem a correnteza dos rios,
+            que em 2024 levou a água mais longe a oeste. Várzeas que já vivem alagadas (abaixo de 1,30 m) aparecem bem claras e
+            não entram na conta.</small>
+          </div>
+          <div class="painel-regiao" id="painel-rio" hidden>
+            <p class="rio-agora" id="rio-agora">carregando o nível…</p>
+            <svg class="grafico-mare" id="grafico-rio" viewBox="0 0 300 104" role="img"
+                 aria-label="Nível do rio nos últimos 7 dias, com as faixas do último ano"></svg>
+            <p class="rio-referencia" id="rio-referencia"></p>
+            <small class="dica-camada" id="dica-rio"></small>
+          </div>
+          <div class="painel-regiao" id="painel-belem" hidden>
+            <p class="mare-agora" id="mare-agora">carregando a maré…</p>
+            <svg class="grafico-mare" id="grafico-mare" viewBox="0 0 300 96" role="img"
+                 aria-label="Nível da maré nas últimas 48 horas"></svg>
+            <p class="mare-alta" id="mare-alta"></p>
+            <p class="chuva-belem" id="chuva-belem"></p>
+            <h3 class="subtitulo">Áreas de risco mapeadas pelo SGB (2021)</h3>
+            <ul class="setores-belem" id="setores-belem"></ul>
+            <small class="dica-camada">Em Belém a cheia vem da maré alta somada à chuva forte: a maré represa os canais e a
+              chuva não escoa. A régua não tem referência no nível do mar, então a maré aparece em relação à média dos últimos
+              30 dias. Aqui não há simulação de nível: o relevo disponível (ANADEM) fica cerca de 3 m acima do real nas baixadas,
+              o que conferimos dentro dos próprios setores de inundação do SGB.</small>
+          </div>
+        </div>
+      </div>
+      <div class="camada">
+        <label><input type="checkbox" id="nuvens" checked> <i class="cor nuvens"></i> Nuvens carregadas</label>
+        <span class="fonte-camada">GOES-19</span>
+        <small id="contagem-nuvens"></small>
+        <div class="simulador animacao-nuvens" id="animacao-nuvens" hidden>
+          <div class="nivel-escolhido">
+            <output id="quadro-nuvens" for="slider-nuvens">—</output>
+            <span id="tipo-quadro-nuvens"></span>
+            <button type="button" id="pausar-nuvens">⏸ Pausar</button>
+          </div>
+          <input type="range" id="slider-nuvens" min="0" max="6" step="1" value="3"
+                 aria-label="Momento da imagem de nuvens, de 30 min antes a 30 min depois">
+        </div>
+        <div class="legenda-chuva legenda-nuvens" id="legenda-nuvens">
+          {% for classe in classes_nuvens %}<span><i style="background: {{ classe.cor }}"></i>{{ classe.celsius }}</span>{% endfor %}<span class="unidade">°C</span>
+        </div>
+        <small class="dica-camada" id="dica-nuvens">Temperatura do topo da nuvem: quanto mais fria, mais alta e carregada. Abaixo de −60 °C costuma ser tempestade. O loop mostra as imagens dos últimos 30 min e, depois de "agora", uma projeção de 30 min. Como a imagem chega com ~30 min de atraso, o "+30 min" fica perto da hora real.</small>
+      </div>
+      <div class="camada">
+        <label><input type="checkbox" data-camada="previsao"> <i class="cor previsao"></i> Chuva prevista</label>
+        <select data-periodo="previsao" aria-label="Período da chuva prevista">
+          <option value="1" selected>próximas 24 h</option><option value="2">próximas 48 h</option><option value="3">próximas 72 h</option>
+        </select>
+        <small data-contagem="previsao"></small>
+        <div class="legenda-chuva" id="legenda-previsao" hidden>
+          {% for classe in classes_chuva %}<span><i style="background: {{ classe.cor }}"></i>{{ classe.mm }}</span>{% endfor %}<span class="unidade">mm</span>
+        </div>
+        <small class="dica-camada" id="dica-previsao" hidden>Modelo Eta do INPE/CPTEC, grade de 40 km: mostra a tendência da
+          região, não a chuva de cada bairro. Mesma escala de cores da chuva acumulada.</small>
+      </div>
+      <div class="camada">
+        <label><input type="checkbox" data-camada="temperatura"> <i class="cor temperatura"></i> Temperatura máxima</label>
+        <select data-periodo="temperatura" aria-label="Período da temperatura máxima prevista">
+          <option value="1" selected>próximas 24 h</option><option value="2">próximas 48 h</option><option value="3">próximas 72 h</option>
+        </select>
+        <small data-contagem="temperatura"></small>
+        <div class="legenda-chuva" id="legenda-temperatura" hidden>
+          {% for classe in classes_temperatura %}<span><i style="background: {{ classe.cor }}"></i>{{ classe.graus }}</span>{% endfor %}<span class="unidade">°C</span>
+        </div>
+        <small class="dica-camada" id="dica-temperatura" hidden>A maior temperatura prevista no período pelo modelo Eta do
+          INPE/CPTEC (grade de 40 km), sem cor abaixo de 28 °C. O modelo costuma exagerar alguns graus em parte do país (em
+          Belém, uns 4 °C): vale mais para ver onde vai fazer calor fora do comum do que pelo número exato.</small>
+      </div>
+      <div class="camada">
+        <label><input type="checkbox" data-camada="chuva"> <i class="cor chuva"></i> Chuva acumulada</label>
+        <select data-periodo="chuva">
+          <option value="1" selected>1 dia</option><option value="3">3 dias</option>
+          <option value="7">7 dias</option><option value="15">15 dias</option><option value="30">30 dias</option>
+        </select>
+        <small data-contagem="chuva"></small>
+        <div class="legenda-chuva" id="legenda-chuva">
+          {% for classe in classes_chuva %}<span><i style="background: {{ classe.cor }}"></i>{{ classe.mm }}</span>{% endfor %}<span class="unidade">mm</span>
+        </div>
+      </div>
+      <div class="camada">
+        <label><input type="checkbox" id="raios"> <i class="cor raios"></i> Raios</label>
+        <select id="janela-raios" aria-label="Janela de tempo dos raios">
+          <option value="15">últimos 15 min</option><option value="30">últimos 30 min</option><option value="60" selected>última hora</option>
+        </select>
+        <small id="contagem-raios"></small>
+        <div class="legenda-raios" id="legenda-raios" hidden>
+          <p><span class="titulo">Cor: intensidade</span>
+            <span><i style="background: #fab005"></i>fraca</span><span><i style="background: #fd7e14"></i>moderada</span><span><i style="background: #e03131"></i>forte</span><span><i style="background: #862e9c"></i>muito forte</span></p>
+          <p><span class="titulo">Quando</span>
+            <span><i class="recente"></i>com anel: últimos 15 min</span><span><i class="antigo"></i>sem anel: antes</span></p>
+        </div>
+        <small class="dica-camada" id="dica-raios" hidden>Satélite GOES-19 (sensor GLM), imagens do INPE a cada 5 min,
+          ~10 min de atraso. Cada círculo é uma área de ~11 km onde o satélite viu raios; a intensidade é quantos
+          clarões ele contou. O anel aparece ao aproximar o mapa; os círculos sem anel mostram por onde a tempestade passou.</small>
+      </div>
+      <div class="camada">
+        <label><input type="checkbox" id="vento"> <i class="cor vento"></i> Vento (10 m)</label>
+        <span class="fonte-camada">modelo Eta</span>
+        <small id="contagem-vento"></small>
+        <div class="legenda-chuva" id="legenda-vento">
+          {% for classe in classes_vento %}<span><i style="background: {{ classe.cor }}"></i>{{ classe.kmh }}</span>{% endfor %}<span class="unidade">km/h</span>
+        </div>
+      </div>
+      <div class="camada">
+        <label><input type="checkbox" id="avisos" checked> <i class="cor avisos"></i> Avisos do INMET</label>
+        <select id="quando-avisos" aria-label="Quais avisos do INMET mostrar" hidden>
+          <option value="agora" selected>em vigor</option>
+          <option value="proximos">próximos dias</option>
+        </select>
+        <small id="contagem-avisos"></small>
+        <div class="legenda-chuva legenda-avisos" id="legenda-avisos" hidden>
+          <span><i style="background: #FFFE00"></i>perigo potencial</span>
+          <span><i style="background: #FE9900"></i>perigo</span>
+          <span><i style="background: #FF0000"></i>grande perigo</span>
+        </div>
+      </div>
+      <div class="camada">
+        <label><input type="checkbox" id="cemaden" checked> <i class="cor cemaden"></i> Alertas do CEMADEN</label>
+        <span class="fonte-camada">risco geo-hidrológico</span>
+        <small id="contagem-cemaden"></small>
+        <small class="dica-camada" id="dica-cemaden">Enchente, enxurrada (risco hidrológico) e deslizamento (movimentos de massa),
+          emitidos às Defesas Civis. Só os 10 municípios das regionais do BC.</small>
+      </div>
+      <div class="camada">
+        <label><input type="checkbox" data-camada="focos"> <i class="cor focos"></i> Focos de queimada</label>
+        <select data-periodo="focos">
+          <option value="1" selected>24 h</option><option value="3">3 dias</option>
+          <option value="7">7 dias</option><option value="30">30 dias</option>
+        </select>
+        <label class="exibicao">Exibir como
+          <select id="exibicao-focos">
+            <option value="pontos" selected>pontos</option>
+            <option value="calor">mapa de calor</option>
+          </select>
+        </label>
+        <small data-contagem="focos"></small>
+        <div class="legenda-calor" id="legenda-calor" hidden>
+          <span>menos focos</span><i></i><span>mais focos</span>
+        </div>
+      </div>
+      <div class="camada">
+        <label><input type="checkbox" data-camada="desmatamento"> <i class="cor desmatamento"></i> Alertas de desmatamento</label>
+        <select data-periodo="desmatamento">
+          <option value="7">7 dias</option><option value="30" selected>30 dias</option>
+          <option value="90">90 dias</option><option value="365">1 ano</option>
+        </select>
+        <small data-contagem="desmatamento"></small>
+      </div>
+      <div class="camada">
+        <label><input type="checkbox" data-camada="sismos"> <i class="cor sismos"></i> Sismos</label>
+        <select data-periodo="sismos">
+          <option value="30">30 dias</option><option value="90" selected>90 dias</option>
+          <option value="365">1 ano</option>
+        </select>
+        <small data-contagem="sismos"></small>
+      </div>
+    </section>
+
+    <details class="secao" id="secao-coleta">
+      <summary><h2>Última coleta e fontes</h2></summary>
+      <div class="coletas">
+        <ul id="coletas"></ul>
+        <p class="dica">Atualize com <code>python manage.py coletar</code>.</p>
+      </div>
+      <p class="fontes">
+        Fontes: <a href="https://terrabrasilis.dpi.inpe.br/queimadas/portal/" target="_blank" rel="noopener">INPE Programa Queimadas</a>,
+        <a href="https://terrabrasilis.dpi.inpe.br/" target="_blank" rel="noopener">INPE DETER / TerraBrasilis</a>,
+        <a href="https://www.sismo.iag.usp.br/" target="_blank" rel="noopener">Centro de Sismologia da USP</a>,
+        chuva <a href="https://ftp.cptec.inpe.br/modelos/tempo/MERGE/GPM/MERGE_READ-ME.pdf" target="_blank" rel="noopener">INPE/CPTEC MERGE</a>,
+        satélite GOES-19 <a href="https://satelite.cptec.inpe.br/" target="_blank" rel="noopener">INPE/CPTEC DSA</a>,
+        vento <a href="https://ftp.cptec.inpe.br/modelos/tempo/Eta/ams_40km/" target="_blank" rel="noopener">modelo Eta (INPE/CPTEC)</a>,
+        relevo <a href="https://metadados.snirh.gov.br/geonetwork/srv/api/records/a5b8f184-d4e3-45e6-a62b-e76d1f255f55" target="_blank" rel="noopener">ANADEM (ANA e IPH/UFRGS)</a>,
+        nível do Guaíba e maré de Belém <a href="https://www.snirh.gov.br/hidrotelemetria/" target="_blank" rel="noopener">telemetria da ANA</a>,
+        áreas de risco de Belém <a href="https://rigeo.sgb.gov.br/handle/doc/20761" target="_blank" rel="noopener">SGB/CPRM</a>,
+        endereços do <a href="https://www.bcb.gov.br/pre/surel/reladmbc/2015/msc/enderecos-bcb.pdf" target="_blank" rel="noopener">Banco Central</a>,
+        avisos meteorológicos <a href="https://avisos.inmet.gov.br/" target="_blank" rel="noopener">INMET</a>,
+        alertas de risco geo-hidrológico <a href="https://painelalertas.cemaden.gov.br/" target="_blank" rel="noopener">CEMADEN</a>,
+        dengue e chikungunya <a href="https://info.dengue.mat.br/" target="_blank" rel="noopener">InfoDengue (Fiocruz/FGV)</a>,
+        malha territorial <a href="https://servicodados.ibge.gov.br/api/docs/malhas" target="_blank" rel="noopener">IBGE</a>.
+      </p>
+    </details>
+  </aside>
+
+  <main id="mapa" aria-label="Mapa do Brasil"></main>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+          integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"
+          integrity="sha256-65UqrlgGoRAnKfKRuriH3eeDrOhZgZo1SCenduc+SGo=" crossorigin=""></script>
+  <script>
+    window.MONITOR = {
+      malhaUfs: "{% static 'dados/brasil_ufs.geojson' %}",
+      iconeBancoCentral: "{% static 'dados/banco_central.svg' %}",
+      api: {
+        focos: "{% url 'dados:focos' %}",
+        focosCalor: "{% url 'dados:focos_calor' %}",
+        desmatamento: "{% url 'dados:desmatamento' %}",
+        sismos: "{% url 'dados:sismos' %}",
+        chuva: "{% url 'dados:chuva' %}",
+        satelite: "{% url 'dados:satelite' %}",
+        raios: "{% url 'dados:raios' %}",
+        vento: "{% url 'dados:vento' %}",
+        enchente: "{% url 'dados:enchente' %}",
+        enchenteBelem: "{% url 'dados:enchente_belem' %}",
+        rio: "{% url 'dados:rio' %}",
+        chuvaNoPonto: "{% url 'dados:chuva_no_ponto' %}",
+        previsao: "{% url 'dados:chuva_prevista' %}",
+        previsaoNoPonto: "{% url 'dados:chuva_prevista_no_ponto' %}",
+        temperatura: "{% url 'dados:temperatura_prevista' %}",
+        temperaturaNoPonto: "{% url 'dados:temperatura_prevista_no_ponto' %}",
+        resumo: "{% url 'dados:resumo' %}",
+        situacao: "{% url 'dados:situacao' %}",
+        alertas: "{% url 'dados:alertas' %}",
+        avisos: "{% url 'dados:avisos' %}",
+        cemaden: "{% url 'dados:cemaden' %}",
+        saude: "{% url 'dados:saude' %}",
+      },
+    };
+  </script>
+  {{ classes_nuvens|json_script:"classes-nuvens" }}
+  {{ cidades|json_script:"cidades" }}
+  {{ classes_vento|json_script:"classes-vento" }}
+  <script src="{% static 'dados/mapa.js' %}?v={{ versao_estaticos }}"></script>
+</body>
+</html>
